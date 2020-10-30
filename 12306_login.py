@@ -3,8 +3,8 @@ import re
 import base64
 import json
 import sys
+import requests
 from selenium.webdriver import ActionChains
-from get_code_position import get_position
 from browsermobproxy import Server
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -14,8 +14,10 @@ from selenium.webdriver.support import expected_conditions as EC
 
 BrowsermobPath = r'D:\browsermob-proxy-2.1.4\bin\browsermob-proxy.bat'
 Login12306Url = "https://kyfw.12306.cn/otn/resources/login.html"
-UserName = '*****@qq.com'
-PassWord = '*****'
+# 打码服务器的搭建 参照https://github.com/YinAoXiong/12306_code_server
+CodeServer12306 = "http://192.168.32.3:8000/verify/base64/"
+UserName = '***@qq.com'
+PassWord = '***'
 
 
 class Login12306:
@@ -79,7 +81,7 @@ class Login12306:
         return binary_raw_image
 
     def ProcessCaptcha(self, binary_raw_image, code_img_element):
-        all_position_list = get_position(binary_raw_image)
+        all_position_list = self.get_position(binary_raw_image)
         print('get image postion %s ' % all_position_list)
 
         for x, y in all_position_list:
@@ -106,6 +108,45 @@ class Login12306:
         self.proxy.close()
         self.browser.quit()
         self.server.stop()
+
+    def get_position(self, pic_raw_data):
+        r = requests.post(url=CodeServer12306,
+                          data={"imageFile": base64.b64encode(pic_raw_data)})
+        result = r.json()
+        select = result["data"]  # {'code': 0, 'data': ['6', '8'], 'massage': '识别成功'}
+
+        post = []
+        offsetsX = 0  # 选择的答案的left值,通过浏览器点击8个小图的中点得到的,这样基本没问题
+        offsetsY = 0  # 选择的答案的top值
+        for ofset in select:
+            if ofset == '1':
+                offsetsY = 77
+                offsetsX = 40
+            elif ofset == '2':
+                offsetsY = 77
+                offsetsX = 112
+            elif ofset == '3':
+                offsetsY = 77
+                offsetsX = 184
+            elif ofset == '4':
+                offsetsY = 77
+                offsetsX = 256
+            elif ofset == '5':
+                offsetsY = 149
+                offsetsX = 40
+            elif ofset == '6':
+                offsetsY = 149
+                offsetsX = 112
+            elif ofset == '7':
+                offsetsY = 149
+                offsetsX = 184
+            elif ofset == '8':
+                offsetsY = 149
+                offsetsX = 256
+            else:
+                pass
+            post.append([offsetsX, offsetsY])
+        return post
 
 
 if __name__ == '__main__':
